@@ -1,29 +1,11 @@
-import { Suspense, useEffect } from 'react';
-import { useState } from 'react/cjs/react.development';
+import { Suspense, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import './App.css';
 import Form from './Form';
 import { OrbitControls, Stars, Environment } from '@react-three/drei';
-import Model from './3D/Model';
 import Ground from './3D/Ground';
-import { Physics, useBox } from '@react-three/cannon';
+import { Physics } from '@react-three/cannon';
 import Vehicle from './3D/Vehicle';
-
-function Box() {
-  const [ref, api] = useBox(() => ({ mass: 1, position: [0, 2, 0] }));
-  return (
-    <mesh
-      onClick={() => {
-        api.velocity.set(10, 2, 10);
-      }}
-      ref={ref}
-      position={[0, 2, 0]}
-    >
-      <boxBufferGeometry attach='geometry' />
-      <meshLambertMaterial attach='material' color='hotpink' />
-    </mesh>
-  );
-}
 
 const App = () => {
   const [user, setUser] = useState({});
