@@ -1,7 +1,12 @@
 import React from 'react';
-import * as THREE from 'three';
+
 const Character = () => {
-  return <div></div>;
+  return (
+    <mesh>
+      <sphereGeometry />
+      <meshBasicMaterial color={'green'} wireframe />
+    </mesh>
+  );
 };
 
 export default Character;
