@@ -1,4 +1,4 @@
-Check my progrees here: https://eamongus-7bz3zqumy-pekado.vercel.app/
+Check my progrees here: https://eamongus.vercel.app/
 
 We have a designer who is working in Blender. He can provide assets if you need them later in the week (attaching examples of the art we will be using).
 
