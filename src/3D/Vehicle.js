@@ -64,7 +64,7 @@ function Vehicle({
     chassisBody: chassis,
     wheels: [wheel1, wheel2, wheel3, wheel4],
     wheelInfos: [wheelInfo1, wheelInfo2, wheelInfo3, wheelInfo4],
-    indexForwardAxis: 2,
+    indexForwardAxis: 20,
     indexRightAxis: 0,
     indexUpAxis: 1,
   }));
@@ -83,10 +83,10 @@ function Vehicle({
       );
     for (let b = 2; b < 4; b++) api.setBrake(brake ? maxBrake : 0, b);
     if (reset) {
-      chassis.current.api.position.set(0, 0.5, 0);
+      chassis.current.api.position.set(0, 0, 5);
       chassis.current.api.velocity.set(0, 0, 0);
       chassis.current.api.angularVelocity.set(0, 0.5, 0);
-      chassis.current.api.rotation.set(0, -Math.PI / 4, 0);
+      chassis.current.api.rotation.set(Math.PI / 2, 0, 0);
     }
   });
 
