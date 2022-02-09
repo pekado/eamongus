@@ -1,40 +1,40 @@
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import "../App.css";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import Stats from "stats.js";
-import equal from "fast-deep-equal";
-
-import { GUI } from "dat.gui";
-import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {useEffect, useState, useRef} from 'react';
+import {useNavigate} from 'react-router-dom';
+import '../App.css';
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import Stats from 'stats.js';
+import equal from 'fast-deep-equal';
+import {GUI} from 'dat.gui';
+import {MeshBVH, MeshBVHVisualizer} from 'three-mesh-bvh';
+import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import Modal from '../components/Modal';
 
 const Stage1 = () => {
   const mountRef = useRef(null);
+  const [isModal, setIsModal] = useState(true);
 
   const params = {
     firstPerson: false,
-
     displayCollider: false,
     displayBVH: false,
     visualizeDepth: 10,
     gravity: -30,
     playerSpeed: 10,
     physicsSteps: 5,
-    
     reset: reset,
   };
-  
+
   let renderer, camera, scene, clock, gui, stats, playerPositionClone;
   let environment, collider, visualizer, player, controls;
   let playerIsOnGround = false;
+  let pause = true;
   let fwdPressed = false,
-  bkdPressed = false,
-  lftPressed = false,
-  rgtPressed = false;
+    bkdPressed = false,
+    lftPressed = false,
+    rgtPressed = false;
   let playerVelocity = new THREE.Vector3();
   let upVector = new THREE.Vector3(0, 1, 0);
   let tempVector = new THREE.Vector3();
@@ -43,12 +43,12 @@ const Stage1 = () => {
   let tempMat = new THREE.Matrix4();
   let tempSegment = new THREE.Line3();
   const navigate = useNavigate();
-  
+
   function init() {
     const bgColor = 0x263238 / 2;
 
     // renderer setup
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(bgColor, 1);
@@ -99,11 +99,11 @@ const Stage1 = () => {
 
     loadColliderEnvironment();
 
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
-    const cube = new THREE.Mesh( geometry, material );
-    cube.geometry.translate(-3, 1, 1)
-    scene.add( cube );
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
+    const cube = new THREE.Mesh(geometry, material);
+    cube.geometry.translate(-3, 1, 1);
+    scene.add(cube);
 
     // character
     player = new THREE.Mesh(
@@ -126,7 +126,7 @@ const Stage1 = () => {
 
     // dat.gui
     gui = new GUI();
-    gui.add(params, "firstPerson").onChange((v) => {
+    gui.add(params, 'firstPerson').onChange((v) => {
       if (!v) {
         camera.position
           .sub(controls.target)
@@ -136,28 +136,28 @@ const Stage1 = () => {
       }
     });
 
-    const visFolder = gui.addFolder("Visualization");
-    visFolder.add(params, "displayCollider");
-    visFolder.add(params, "displayBVH");
-    visFolder.add(params, "visualizeDepth", 1, 20, 1).onChange((v) => {
+    const visFolder = gui.addFolder('Visualization');
+    visFolder.add(params, 'displayCollider');
+    visFolder.add(params, 'displayBVH');
+    visFolder.add(params, 'visualizeDepth', 1, 20, 1).onChange((v) => {
       visualizer.depth = v;
       visualizer.update();
     });
     visFolder.open();
 
-    const physicsFolder = gui.addFolder("Player");
-    physicsFolder.add(params, "physicsSteps", 0, 30, 1);
-    physicsFolder.add(params, "gravity", -100, 100, 0.01).onChange((v) => {
+    const physicsFolder = gui.addFolder('Player');
+    physicsFolder.add(params, 'physicsSteps', 0, 30, 1);
+    physicsFolder.add(params, 'gravity', -100, 100, 0.01).onChange((v) => {
       params.gravity = parseFloat(v);
     });
-    physicsFolder.add(params, "playerSpeed", 1, 20);
+    physicsFolder.add(params, 'playerSpeed', 1, 20);
     physicsFolder.open();
 
-    gui.add(params, "reset");
+    gui.add(params, 'reset');
     gui.open();
 
     window.addEventListener(
-      "resize",
+      'resize',
       function () {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -167,21 +167,21 @@ const Stage1 = () => {
       false
     );
 
-    window.addEventListener("keydown", function (e) {
+    window.addEventListener('keydown', function (e) {
       switch (e.code) {
-        case "KeyW":
+        case 'KeyW':
           fwdPressed = true;
           break;
-        case "KeyS":
+        case 'KeyS':
           bkdPressed = true;
           break;
-        case "KeyD":
+        case 'KeyD':
           rgtPressed = true;
           break;
-        case "KeyA":
+        case 'KeyA':
           lftPressed = true;
           break;
-        case "Space":
+        case 'Space':
           if (playerIsOnGround) {
             playerVelocity.y = 10.0;
           }
@@ -190,27 +190,26 @@ const Stage1 = () => {
       }
     });
 
-    window.addEventListener("keyup", function (e) {
+    window.addEventListener('keyup', function (e) {
       switch (e.code) {
-        case "KeyW":
-          console.log(playerPositionClone)
+        case 'KeyW':
           fwdPressed = false;
           break;
-          case "KeyS":
-            bkdPressed = false;
-            break;
-            case "KeyD":
-              rgtPressed = false;
-              break;
-              case "KeyA":
-                lftPressed = false;
-                break;
-              }
-            });
-          }
-          
+        case 'KeyS':
+          bkdPressed = false;
+          break;
+        case 'KeyD':
+          rgtPressed = false;
+          break;
+        case 'KeyA':
+          lftPressed = false;
+          break;
+      }
+    });
+  }
+
   function loadColliderEnvironment() {
-    new GLTFLoader().load("./rooms_new.glb", (res) => {
+    new GLTFLoader().load('./rooms_new.glb', (res) => {
       environment = res.scene;
       environment.scale.setScalar(2);
 
@@ -238,7 +237,7 @@ const Stage1 = () => {
           const cloned = c.geometry.clone();
           cloned.applyMatrix4(c.matrixWorld);
           for (const key in cloned.attributes) {
-            if (key !== "position") {
+            if (key !== 'position') {
               cloned.deleteAttribute(key);
             }
           }
@@ -283,6 +282,35 @@ const Stage1 = () => {
     controls.update();
   }
 
+  //modal logic
+  function showModal() {
+    // navigator.keyboard.lock();
+    setIsModal(true);
+    setPause();
+  }
+
+  function setPause() {
+    pause = !pause;
+    console.log(pause);
+  }
+
+  function hideModal() {
+    // console.log(player);
+    // player.position.set(
+    //   player.position.x + 1,
+    //   player.position.y,
+    //   player.position.z
+    // );
+    setPause();
+    setIsModal(false);
+  }
+
+  function start() {
+    setPause();
+    init();
+    render();
+    setIsModal(false);
+  }
 
   function updatePlayer(delta) {
     playerPositionClone = {
@@ -290,13 +318,15 @@ const Stage1 = () => {
       y: Math.floor(player.position.y),
       z: Math.floor(player.position.z),
     };
-    equal(playerPositionClone, { x: -3, y: 1, z: 1 }) && navigateTo("/stage2");
+
+    // equal(playerPositionClone, { x: -3, y: 1, z: 1 }) && navigateTo("/stage2");
+    equal(playerPositionClone, {x: -3, y: 1, z: 1}) && showModal(1);
 
     playerVelocity.y += playerIsOnGround ? 0 : delta * params.gravity;
     player.position.addScaledVector(playerVelocity, delta);
-
     // move the player
     const angle = controls.getAzimuthalAngle();
+    // if (pause === false) {
     if (fwdPressed) {
       tempVector.set(0, 0, -1).applyAxisAngle(upVector, angle);
       player.position.addScaledVector(tempVector, params.playerSpeed * delta);
@@ -316,9 +346,9 @@ const Stage1 = () => {
       tempVector.set(1, 0, 0).applyAxisAngle(upVector, angle);
       player.position.addScaledVector(tempVector, params.playerSpeed * delta);
     }
+    // }
 
     player.updateMatrixWorld();
-
     // adjust player position based on collisions
     const capsuleInfo = player.capsuleInfo;
     tempBox.makeEmpty();
@@ -400,10 +430,11 @@ const Stage1 = () => {
       reset();
     }
   }
-  function navigateTo(url){
-    gui.close()
-    navigate(url)
+  function navigateTo(url) {
+    gui.close();
+    navigate(url);
   }
+
   function render() {
     stats.update();
     requestAnimationFrame(render);
@@ -419,12 +450,13 @@ const Stage1 = () => {
       controls.maxDistance = 20;
     }
 
+    console.log(pause, isModal);
     if (collider) {
       collider.visible = params.displayCollider;
       visualizer.visible = params.displayBVH;
 
       const physicsSteps = params.physicsSteps;
-
+      if (pause) return;
       for (let i = 0; i < physicsSteps; i++) {
         updatePlayer(delta / physicsSteps);
       }
@@ -433,20 +465,28 @@ const Stage1 = () => {
     // TODO: limit the camera movement based on the collider
     // raycast in direction of camera and move it if it's further than the closest point
 
+    // if (pause) {}
     controls.update();
 
     renderer.render(scene, camera);
   }
   useEffect(() => {
-    init();
-    render();
+    /*     init(); */
+    /*    render(); */
   }, []);
 
   return (
-    
-    <div className="App h-full overflow-hidden">
-      <div ref={mountRef}></div>
-    </div>
+    <>
+      {isModal && (
+        <Modal>
+          <button onClick={start}>Start</button>
+          <button onClick={hideModal}>Close</button>
+        </Modal>
+      )}
+      <div className='App h-full overflow-hidden'>
+        <div ref={mountRef}></div>
+      </div>
+    </>
   );
 };
 
