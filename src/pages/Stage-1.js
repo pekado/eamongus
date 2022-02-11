@@ -1,3 +1,4 @@
+'use strict';
 import {useEffect, useState, useRef} from 'react';
 import {useNavigate} from 'react-router-dom';
 import '../App.css';
@@ -14,7 +15,18 @@ import Modal from '../components/Modal';
 
 const Stage1 = () => {
   const mountRef = useRef(null);
-  const [isModal, setIsModal] = useState(true);
+  const [isModal, setIsModal] = useState(false);
+  const [openCheckpoint, setOpenCheckpoint] = useState({});
+  let checkpoints = [
+    {
+      url: 'https://uselessfacts.jsph.pl/random.json',
+      number: 0,
+    },
+    {
+      url: 'https://uselessfacts.jsph.pl/random.json',
+      number: 1,
+    },
+  ];
 
   const params = {
     firstPerson: false,
@@ -27,10 +39,18 @@ const Stage1 = () => {
     reset: reset,
   };
 
-  let renderer, camera, scene, clock, gui, stats, playerPositionClone;
+  let renderer,
+    camera,
+    scene,
+    clock,
+    gui,
+    stats,
+    playerPositionClone,
+    cubeA,
+    cubeB,
+    cubeC;
   let environment, collider, visualizer, player, controls;
   let playerIsOnGround = false;
-  let pause = true;
   let fwdPressed = false,
     bkdPressed = false,
     lftPressed = false,
@@ -42,6 +62,8 @@ const Stage1 = () => {
   let tempBox = new THREE.Box3();
   let tempMat = new THREE.Matrix4();
   let tempSegment = new THREE.Line3();
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
   const navigate = useNavigate();
 
   function init() {
@@ -99,11 +121,26 @@ const Stage1 = () => {
 
     loadColliderEnvironment();
 
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
-    const cube = new THREE.Mesh(geometry, material);
-    cube.geometry.translate(-3, 1, 1);
-    scene.add(cube);
+    //cubes
+
+    cubeA = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({color: 'blue'})
+    );
+    cubeB = new THREE.Mesh(geometry, material);
+    cubeC = new THREE.Mesh(geometry, material);
+    cubeA.position.set(-3, 1, 1);
+    cubeB.position.set(15, 6, -3);
+    cubeC.position.set(20, 6, -3);
+
+    //create a group and add the two cubes
+    //These cubes can now be rotated / scaled etc as a group
+    const group = new THREE.Group();
+    group.add(cubeA);
+    group.add(cubeB);
+    group.add(cubeC);
+
+    scene.add(group);
 
     // character
     player = new THREE.Mesh(
@@ -283,32 +320,15 @@ const Stage1 = () => {
   }
 
   //modal logic
-  function showModal() {
-    // navigator.keyboard.lock();
+  async function showModal(checkpoint) {
+    if (isModal) return;
+    if (!checkpoint) return;
     setIsModal(true);
-    setPause();
-  }
-
-  function setPause() {
-    pause = !pause;
-    console.log(pause);
+    setOpenCheckpoint(checkpoint);
   }
 
   function hideModal() {
-    // console.log(player);
-    // player.position.set(
-    //   player.position.x + 1,
-    //   player.position.y,
-    //   player.position.z
-    // );
-    setPause();
-    setIsModal(false);
-  }
-
-  function start() {
-    setPause();
-    init();
-    render();
+    setOpenCheckpoint({});
     setIsModal(false);
   }
 
@@ -318,15 +338,34 @@ const Stage1 = () => {
       y: Math.floor(player.position.y),
       z: Math.floor(player.position.z),
     };
+    //open modal based in position (checkpoints)
+    if (!checkpoints.length) {
+      cubeA.material = material;
+      equal(playerPositionClone, {x: -3, y: 1, z: 1}) && navigateTo('/stage2');
+    }
 
-    // equal(playerPositionClone, { x: -3, y: 1, z: 1 }) && navigateTo("/stage2");
-    equal(playerPositionClone, {x: -3, y: 1, z: 1}) && showModal(1);
+    if (equal(playerPositionClone, {x: 15, y: 7, z: -4})) {
+      const currentCheckpoint = checkpoints.find(
+        (checkpoint) => checkpoint.number === 0
+      );
+      showModal(currentCheckpoint);
+      checkpoints = checkpoints.filter((checkpoint) => checkpoint.number !== 0);
+      cubeB.material = new THREE.MeshBasicMaterial({color: 'red'});
+    }
+    if (equal(playerPositionClone, {x: 20, y: 7, z: -4})) {
+      const currentCheckpoint = checkpoints.find(
+        (checkpoint) => checkpoint.number === 1
+      );
+      showModal(currentCheckpoint);
+      checkpoints = checkpoints.filter((checkpoint) => checkpoint.number !== 1);
+      cubeC.material = new THREE.MeshBasicMaterial({color: 'red'});
+    }
 
     playerVelocity.y += playerIsOnGround ? 0 : delta * params.gravity;
     player.position.addScaledVector(playerVelocity, delta);
     // move the player
     const angle = controls.getAzimuthalAngle();
-    // if (pause === false) {
+
     if (fwdPressed) {
       tempVector.set(0, 0, -1).applyAxisAngle(upVector, angle);
       player.position.addScaledVector(tempVector, params.playerSpeed * delta);
@@ -346,7 +385,6 @@ const Stage1 = () => {
       tempVector.set(1, 0, 0).applyAxisAngle(upVector, angle);
       player.position.addScaledVector(tempVector, params.playerSpeed * delta);
     }
-    // }
 
     player.updateMatrixWorld();
     // adjust player position based on collisions
@@ -450,39 +488,35 @@ const Stage1 = () => {
       controls.maxDistance = 20;
     }
 
-    console.log(pause, isModal);
     if (collider) {
       collider.visible = params.displayCollider;
       visualizer.visible = params.displayBVH;
 
       const physicsSteps = params.physicsSteps;
-      if (pause) return;
       for (let i = 0; i < physicsSteps; i++) {
         updatePlayer(delta / physicsSteps);
       }
     }
 
-    // TODO: limit the camera movement based on the collider
-    // raycast in direction of camera and move it if it's further than the closest point
-
-    // if (pause) {}
     controls.update();
 
     renderer.render(scene, camera);
   }
   useEffect(() => {
-    /*     init(); */
-    /*    render(); */
+    init();
+    render();
   }, []);
 
   return (
     <>
-      {isModal && (
-        <Modal>
-          <button onClick={start}>Start</button>
-          <button onClick={hideModal}>Close</button>
-        </Modal>
-      )}
+      <Modal url={openCheckpoint.url} isModal={isModal}>
+        <button
+          className='bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded m-6'
+          onClick={hideModal}
+        >
+          Close
+        </button>
+      </Modal>
       <div className='App h-full overflow-hidden'>
         <div ref={mountRef}></div>
       </div>
