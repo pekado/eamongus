@@ -1,40 +1,60 @@
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import "../App.css";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import Stats from "stats.js";
-import equal from "fast-deep-equal";
-
-import { GUI } from "dat.gui";
-import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+'use strict';
+import {useEffect, useState, useRef} from 'react';
+import {useNavigate} from 'react-router-dom';
+import '../App.css';
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import Stats from 'stats.js';
+import equal from 'fast-deep-equal';
+import {GUI} from 'dat.gui';
+import {MeshBVH, MeshBVHVisualizer} from 'three-mesh-bvh';
+import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import Modal from '../components/Modal';
 
 const Stage1 = () => {
   const mountRef = useRef(null);
+  const [isModal, setIsModal] = useState(false);
+  const [openCheckpoint, setOpenCheckpoint] = useState({});
+  let checkpoints = [
+    {
+      url: 'https://uselessfacts.jsph.pl/random.json',
+      number: 0,
+    },
+    {
+      url: 'https://uselessfacts.jsph.pl/random.json',
+      number: 1,
+    },
+  ];
 
   const params = {
     firstPerson: false,
-
     displayCollider: false,
     displayBVH: false,
     visualizeDepth: 10,
     gravity: -30,
     playerSpeed: 10,
     physicsSteps: 5,
-    
     reset: reset,
   };
-  
-  let renderer, camera, scene, clock, gui, stats, playerPositionClone;
+
+  let renderer,
+    camera,
+    scene,
+    clock,
+    gui,
+    stats,
+    playerPositionClone,
+    cubeA,
+    cubeB,
+    cubeC;
   let environment, collider, visualizer, player, controls;
   let playerIsOnGround = false;
   let fwdPressed = false,
-  bkdPressed = false,
-  lftPressed = false,
-  rgtPressed = false;
+    bkdPressed = false,
+    lftPressed = false,
+    rgtPressed = false;
   let playerVelocity = new THREE.Vector3();
   let upVector = new THREE.Vector3(0, 1, 0);
   let tempVector = new THREE.Vector3();
@@ -42,13 +62,15 @@ const Stage1 = () => {
   let tempBox = new THREE.Box3();
   let tempMat = new THREE.Matrix4();
   let tempSegment = new THREE.Line3();
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
   const navigate = useNavigate();
-  
+
   function init() {
     const bgColor = 0x263238 / 2;
 
     // renderer setup
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(bgColor, 1);
@@ -99,11 +121,26 @@ const Stage1 = () => {
 
     loadColliderEnvironment();
 
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
-    const cube = new THREE.Mesh( geometry, material );
-    cube.geometry.translate(-3, 1, 1)
-    scene.add( cube );
+    //cubes
+
+    cubeA = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({color: 'blue'})
+    );
+    cubeB = new THREE.Mesh(geometry, material);
+    cubeC = new THREE.Mesh(geometry, material);
+    cubeA.position.set(-3, 1, 1);
+    cubeB.position.set(15, 6, -3);
+    cubeC.position.set(20, 6, -3);
+
+    //create a group and add the two cubes
+    //These cubes can now be rotated / scaled etc as a group
+    const group = new THREE.Group();
+    group.add(cubeA);
+    group.add(cubeB);
+    group.add(cubeC);
+
+    scene.add(group);
 
     // character
     player = new THREE.Mesh(
@@ -126,7 +163,7 @@ const Stage1 = () => {
 
     // dat.gui
     gui = new GUI();
-    gui.add(params, "firstPerson").onChange((v) => {
+    gui.add(params, 'firstPerson').onChange((v) => {
       if (!v) {
         camera.position
           .sub(controls.target)
@@ -136,28 +173,28 @@ const Stage1 = () => {
       }
     });
 
-    const visFolder = gui.addFolder("Visualization");
-    visFolder.add(params, "displayCollider");
-    visFolder.add(params, "displayBVH");
-    visFolder.add(params, "visualizeDepth", 1, 20, 1).onChange((v) => {
+    const visFolder = gui.addFolder('Visualization');
+    visFolder.add(params, 'displayCollider');
+    visFolder.add(params, 'displayBVH');
+    visFolder.add(params, 'visualizeDepth', 1, 20, 1).onChange((v) => {
       visualizer.depth = v;
       visualizer.update();
     });
     visFolder.open();
 
-    const physicsFolder = gui.addFolder("Player");
-    physicsFolder.add(params, "physicsSteps", 0, 30, 1);
-    physicsFolder.add(params, "gravity", -100, 100, 0.01).onChange((v) => {
+    const physicsFolder = gui.addFolder('Player');
+    physicsFolder.add(params, 'physicsSteps', 0, 30, 1);
+    physicsFolder.add(params, 'gravity', -100, 100, 0.01).onChange((v) => {
       params.gravity = parseFloat(v);
     });
-    physicsFolder.add(params, "playerSpeed", 1, 20);
+    physicsFolder.add(params, 'playerSpeed', 1, 20);
     physicsFolder.open();
 
-    gui.add(params, "reset");
+    gui.add(params, 'reset');
     gui.open();
 
     window.addEventListener(
-      "resize",
+      'resize',
       function () {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -167,21 +204,21 @@ const Stage1 = () => {
       false
     );
 
-    window.addEventListener("keydown", function (e) {
+    window.addEventListener('keydown', function (e) {
       switch (e.code) {
-        case "KeyW":
+        case 'KeyW':
           fwdPressed = true;
           break;
-        case "KeyS":
+        case 'KeyS':
           bkdPressed = true;
           break;
-        case "KeyD":
+        case 'KeyD':
           rgtPressed = true;
           break;
-        case "KeyA":
+        case 'KeyA':
           lftPressed = true;
           break;
-        case "Space":
+        case 'Space':
           if (playerIsOnGround) {
             playerVelocity.y = 10.0;
           }
@@ -190,27 +227,26 @@ const Stage1 = () => {
       }
     });
 
-    window.addEventListener("keyup", function (e) {
+    window.addEventListener('keyup', function (e) {
       switch (e.code) {
-        case "KeyW":
-          console.log(playerPositionClone)
+        case 'KeyW':
           fwdPressed = false;
           break;
-          case "KeyS":
-            bkdPressed = false;
-            break;
-            case "KeyD":
-              rgtPressed = false;
-              break;
-              case "KeyA":
-                lftPressed = false;
-                break;
-              }
-            });
-          }
-          
+        case 'KeyS':
+          bkdPressed = false;
+          break;
+        case 'KeyD':
+          rgtPressed = false;
+          break;
+        case 'KeyA':
+          lftPressed = false;
+          break;
+      }
+    });
+  }
+
   function loadColliderEnvironment() {
-    new GLTFLoader().load("./rooms_new.glb", (res) => {
+    new GLTFLoader().load('./rooms_new.glb', (res) => {
       environment = res.scene;
       environment.scale.setScalar(2);
 
@@ -238,7 +274,7 @@ const Stage1 = () => {
           const cloned = c.geometry.clone();
           cloned.applyMatrix4(c.matrixWorld);
           for (const key in cloned.attributes) {
-            if (key !== "position") {
+            if (key !== 'position') {
               cloned.deleteAttribute(key);
             }
           }
@@ -283,6 +319,18 @@ const Stage1 = () => {
     controls.update();
   }
 
+  //modal logic
+  async function showModal(checkpoint) {
+    if (isModal) return;
+    if (!checkpoint) return;
+    setIsModal(true);
+    setOpenCheckpoint(checkpoint);
+  }
+
+  function hideModal() {
+    setOpenCheckpoint({});
+    setIsModal(false);
+  }
 
   function updatePlayer(delta) {
     playerPositionClone = {
@@ -290,13 +338,34 @@ const Stage1 = () => {
       y: Math.floor(player.position.y),
       z: Math.floor(player.position.z),
     };
-    equal(playerPositionClone, { x: -3, y: 1, z: 1 }) && navigateTo("/stage2");
+    //open modal based in position (checkpoints)
+    if (!checkpoints.length) {
+      cubeA.material = material;
+      equal(playerPositionClone, {x: -3, y: 1, z: 1}) && navigateTo('/stage2');
+    }
+
+    if (equal(playerPositionClone, {x: 15, y: 7, z: -4})) {
+      const currentCheckpoint = checkpoints.find(
+        (checkpoint) => checkpoint.number === 0
+      );
+      showModal(currentCheckpoint);
+      checkpoints = checkpoints.filter((checkpoint) => checkpoint.number !== 0);
+      cubeB.material = new THREE.MeshBasicMaterial({color: 'red'});
+    }
+    if (equal(playerPositionClone, {x: 20, y: 7, z: -4})) {
+      const currentCheckpoint = checkpoints.find(
+        (checkpoint) => checkpoint.number === 1
+      );
+      showModal(currentCheckpoint);
+      checkpoints = checkpoints.filter((checkpoint) => checkpoint.number !== 1);
+      cubeC.material = new THREE.MeshBasicMaterial({color: 'red'});
+    }
 
     playerVelocity.y += playerIsOnGround ? 0 : delta * params.gravity;
     player.position.addScaledVector(playerVelocity, delta);
-
     // move the player
     const angle = controls.getAzimuthalAngle();
+
     if (fwdPressed) {
       tempVector.set(0, 0, -1).applyAxisAngle(upVector, angle);
       player.position.addScaledVector(tempVector, params.playerSpeed * delta);
@@ -318,7 +387,6 @@ const Stage1 = () => {
     }
 
     player.updateMatrixWorld();
-
     // adjust player position based on collisions
     const capsuleInfo = player.capsuleInfo;
     tempBox.makeEmpty();
@@ -400,10 +468,11 @@ const Stage1 = () => {
       reset();
     }
   }
-  function navigateTo(url){
-    gui.close()
-    navigate(url)
+  function navigateTo(url) {
+    gui.close();
+    navigate(url);
   }
+
   function render() {
     stats.update();
     requestAnimationFrame(render);
@@ -424,14 +493,10 @@ const Stage1 = () => {
       visualizer.visible = params.displayBVH;
 
       const physicsSteps = params.physicsSteps;
-
       for (let i = 0; i < physicsSteps; i++) {
         updatePlayer(delta / physicsSteps);
       }
     }
-
-    // TODO: limit the camera movement based on the collider
-    // raycast in direction of camera and move it if it's further than the closest point
 
     controls.update();
 
@@ -443,10 +508,19 @@ const Stage1 = () => {
   }, []);
 
   return (
-    
-    <div className="App h-full overflow-hidden">
-      <div ref={mountRef}></div>
-    </div>
+    <>
+      <Modal url={openCheckpoint.url} isModal={isModal}>
+        <button
+          className='bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded m-6'
+          onClick={hideModal}
+        >
+          Close
+        </button>
+      </Modal>
+      <div className='App h-full overflow-hidden'>
+        <div ref={mountRef}></div>
+      </div>
+    </>
   );
 };
 
